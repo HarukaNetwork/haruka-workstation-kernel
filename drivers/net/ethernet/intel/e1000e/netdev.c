@@ -4047,7 +4047,6 @@ void e1000e_reset(struct e1000_adapter *adapter)
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
 	case e1000_pch_cnp:
-		/* fall-through */
 	case e1000_pch_tgp:
 		fc->refresh_time = 0xFFFF;
 		fc->pause_time = 0xFFFF;
