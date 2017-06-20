@@ -871,6 +871,12 @@ struct task_struct {
 	/* Empty if CONFIG_POSIX_CPUTIMERS=n */
 	struct posix_cputimers		posix_cputimers;
 
+#ifdef CONFIG_POSIX_TIMERS
+	struct task_cputime		cputime_expires;
+	struct list_head		cpu_timers[3];
+#endif
+	int fsync_count;
+
 	/* Process credentials: */
 
 	/* Tracer's credentials at attach: */
