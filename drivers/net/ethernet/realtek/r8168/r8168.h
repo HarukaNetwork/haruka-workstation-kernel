@@ -297,6 +297,10 @@ do { \
 #define ENABLE_S5WOL	1
 #define CONFIG_SOC_LAN	1
 
+#ifdef RTL8168_DEBUG
+#undef RTL8168_DEBUG
+#endif
+
 //Hardware will continue interrupt 10 times after interrupt finished.
 #define RTK_KEEP_INTERRUPT_COUNT (10)
 
