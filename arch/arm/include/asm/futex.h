@@ -111,13 +111,13 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	__ua_flags = uaccess_save_and_enable();
 	__asm__ __volatile__("@futex_atomic_cmpxchg_inatomic\n"
 	"	.syntax unified\n"
-	"1:	" TUSER(ldr) "	%1, [%4]\n"
-	"	teq	%1, %2\n"
+	"1:	" TUSER(ldr) "	%1, [%2]\n"
+	"	teq	%1, %3\n"
 	"	it	eq	@ explicit IT needed for the 2b label\n"
-	"2:	" TUSERCOND(str, eq) "	%3, [%4]\n"
+	"2:	" TUSERCOND(str, eq) "	%4, [%2]\n"
 	__futex_atomic_ex_table("%5")
-	: "+r" (ret), "=&r" (val)
-	: "r" (oldval), "r" (newval), "r" (uaddr), "Ir" (-EFAULT)
+	: "+&r" (ret), "=&r" (val), "+&r" (uaddr)
+	: "r" (oldval), "r" (newval), "Ir" (-EFAULT)
 	: "cc", "memory");
 	uaccess_restore(__ua_flags);
 
