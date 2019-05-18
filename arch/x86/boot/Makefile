@@ -71,6 +71,8 @@ KBUILD_CFLAGS	+= $(call cc-option,-fmacro-prefix-map=$(srctree)/=)
 GCOV_PROFILE := n
 UBSAN_SANITIZE := n
 
+KBUILD_CFLAGS	+= $(call cc-disable-warning, address-of-packed-member)
+
 $(obj)/bzImage: asflags-y  := $(SVGA_MODE)
 
 quiet_cmd_image = BUILD   $@
