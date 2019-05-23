@@ -1393,8 +1393,9 @@ static unsigned long local_clock_us(unsigned int *cpu)
 static bool busywait_stop(unsigned long timeout, unsigned int cpu)
 {
 	unsigned int this_cpu;
+	unsigned long local_clock = local_clock_us(&this_cpu);
 
-	if (time_after(local_clock_us(&this_cpu), timeout))
+	if (time_after(local_clock, timeout))
 		return true;
 
 	return this_cpu != cpu;
