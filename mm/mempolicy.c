@@ -2165,6 +2165,9 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
 				page = __alloc_pages_node(hpage_node,
 								gfp, order);
 
+			if (!(gfp & __GFP_DIRECT_RECLAIM))
+				gfp |= __GFP_THISNODE;
+			page = __alloc_pages_node(hpage_node, gfp, order);
 			goto out;
 		}
 	}
