@@ -24,6 +24,8 @@
 #include "dfl.h"
 #include "dfl-fme.h"
 
+#define DRV_VERSION	"0.8"
+
 static ssize_t ports_num_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -746,3 +748,4 @@ MODULE_DESCRIPTION("FPGA Management Engine driver");
 MODULE_AUTHOR("Intel Corporation");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:dfl-fme");
+MODULE_VERSION(DRV_VERSION);
