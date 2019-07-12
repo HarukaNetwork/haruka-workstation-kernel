@@ -249,6 +249,10 @@ cat << EOF
 #define __IGNORE_getpmsg
 #define __IGNORE_putpmsg
 #define __IGNORE_vserver
+
+#if defined(CONFIG_MIPS) || defined(CONFIG_PPC32) || defined(CONFIG_PPC64)
+#define __IGNORE_clone3
+#endif
 EOF
 }
 
