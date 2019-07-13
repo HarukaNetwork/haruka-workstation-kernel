@@ -5595,7 +5595,7 @@ static int _kc_ethtool_op_set_sg(struct net_device *dev, u32 data)
 }
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 static int
 rtl_ethtool_get_eee(struct net_device *net, struct ethtool_eee *eee)
 {
@@ -5697,7 +5697,7 @@ rtl_ethtool_set_eee(struct net_device *net, struct ethtool_eee *eee)
 
         return 0;
 }
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0) */
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0) */
 
 static int rtl_nway_reset(struct net_device *dev)
 {
@@ -5773,10 +5773,10 @@ static const struct ethtool_ops rtl8168_ethtool_ops = {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
         .get_ts_info        = ethtool_op_get_ts_info,
 #endif //LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
         .get_eee = rtl_ethtool_get_eee,
         .set_eee = rtl_ethtool_set_eee,
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0) */
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0) */
         .nway_reset = rtl_nway_reset,
 };
 #endif //LINUX_VERSION_CODE > KERNEL_VERSION(2,4,22)
