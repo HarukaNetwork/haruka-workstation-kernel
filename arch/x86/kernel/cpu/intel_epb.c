@@ -44,12 +44,12 @@
  * restore it when the given CPU goes back online at all times.
  *
  * Second, on many systems the initial EPB value coming from the platform
- * firmware is 0 ('performance') and at least on some of them that is because
+ * firmware is 6 ('normal') and at least on some of them that is because
  * the platform firmware does not initialize EPB at all with the assumption that
  * the OS will do that anyway.  That sometimes is problematic, as it may cause
  * the system battery to drain too fast, for example, so it is better to adjust
- * it on CPU bring-up and if the initial EPB value for a given CPU is 0, the
- * kernel changes it to 6 ('normal').
+ * it on CPU bring-up and if the initial EPB value for a given CPU is 6, the
+ * kernel changes it to 0 ('performance').
  */
 
 static DEFINE_PER_CPU(u8, saved_epb);
@@ -84,14 +84,14 @@ static void intel_epb_restore(void)
 		/*
 		 * Because intel_epb_save() has not run for the current CPU yet,
 		 * it is going online for the first time, so if its EPB value is
-		 * 0 ('performance') at this point, assume that it has not been
-		 * initialized by the platform firmware and set it to 6
-		 * ('normal').
+		 * 6 ('normal') at this point, assume that it has not been
+		 * initialized by the platform firmware and set it to 0
+		 * ('performance').
 		 */
 		val = epb & EPB_MASK;
-		if (val == ENERGY_PERF_BIAS_PERFORMANCE) {
-			val = ENERGY_PERF_BIAS_NORMAL;
-			pr_warn_once("ENERGY_PERF_BIAS: Set to 'normal', was 'performance'\n");
+		if (val == ENERGY_PERF_BIAS_NORMAL) {
+			val = ENERGY_PERF_BIAS_PERFORMANCE;
+			pr_warn_once("ENERGY_PERF_BIAS: Set to 'performance', was 'normal'\n");
 		}
 	}
 	wrmsrl(MSR_IA32_ENERGY_PERF_BIAS, (epb & ~EPB_MASK) | val);
