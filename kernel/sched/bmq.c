@@ -1331,18 +1331,17 @@ out:
 	return dest_cpu;
 }
 
-static inline int best_mask_cpu(int cpu, cpumask_t *cpumask)
+static inline int __best_mask_cpu(int cpu, cpumask_t *cpumask)
 {
-	cpumask_t *mask;
-
-	if (cpumask_test_cpu(cpu, cpumask))
-		return cpu;
-
-	mask = &(per_cpu(sched_cpu_affinity_chk_masks, cpu)[0]);
+	cpumask_t *mask = &(per_cpu(sched_cpu_affinity_chk_masks, cpu)[0]);
 	while ((cpu = cpumask_any_and(cpumask, mask)) >= nr_cpu_ids)
 		mask++;
-
 	return cpu;
+}
+
+static inline int best_mask_cpu(int cpu, cpumask_t *cpumask)
+{
+	return cpumask_test_cpu(cpu, cpumask)? cpu:__best_mask_cpu(cpu, cpumask);
 }
 
 /*
@@ -2466,7 +2465,7 @@ static inline int active_load_balance_cpu_stop(void *data)
 {
 	struct rq *rq = this_rq();
 	struct task_struct *p = data;
-	int cpu;
+	cpumask_t tmp;
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -2477,8 +2476,8 @@ static inline int active_load_balance_cpu_stop(void *data)
 	rq->active_balance = 0;
 	/* _something_ may have changed the task, double check again */
 	if (task_on_rq_queued(p) && task_rq(p) == rq &&
-	    (cpu = cpumask_any_and(p->cpus_ptr, &sched_rq_watermark[0])) < nr_cpu_ids)
-		rq = move_queued_task(rq, p, cpu);
+	    cpumask_and(&tmp, p->cpus_ptr, &sched_rq_watermark[0]))
+		rq = move_queued_task(rq, p, __best_mask_cpu(cpu_of(rq), &tmp));
 
 	raw_spin_unlock(&rq->lock);
 	raw_spin_unlock(&p->pi_lock);
