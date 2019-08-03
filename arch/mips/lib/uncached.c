@@ -42,7 +42,14 @@ unsigned long run_uncached(void *func)
 	long lfunc = (long)func, ufunc;
 	long usp;
 
+#ifdef CONFIG_CC_IS_CLANG
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wuninitialized"
+#endif
 	if (sp >= (long)CKSEG0 && sp < (long)CKSEG2)
+#ifdef CONFIG_CC_IS_CLANG
+#pragma clang diagnostic pop
+#endif
 		usp = CKSEG1ADDR(sp);
 #ifdef CONFIG_64BIT
 	else if ((long long)sp >= (long long)PHYS_TO_XKPHYS(0, 0) &&
