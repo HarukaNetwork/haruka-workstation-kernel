@@ -1038,7 +1038,6 @@ config CGROUP_DEVICE
 
 config CGROUP_CPUACCT
 	bool "Simple CPU accounting controller"
-	depends on !SCHED_BMQ
 	help
 	  Provides a simple controller for monitoring the
 	  total CPU consumed by the tasks in a cgroup.
