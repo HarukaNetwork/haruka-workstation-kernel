@@ -91,5 +91,20 @@ The first factor is simply the task’s static priority. Which is assigned from
 task's nice level, within [-20, 19] in userland's point of view and [0, 39]
 internally.
 
+The second factor is the priority boost. This is a value bounded between
+[-MAX_PRIORITY_ADJ, MAX_PRIORITY_ADJ] used to offset the base priority, it is
+modified by the following cases:
 
-To be continued...
+*When a thread has used up its entire timeslice, always deboost its boost by
+increasing by one.
+*When a thread gives up cpu control(voluntary or non-voluntary) to reschedule,
+and its switch-in time(time after last switch and run) below the thredhold
+based on its priority boost, will boost its boost by decreasing by one buti is
+capped at 0 (won’t go negative).
+
+The intent in this system is to ensure that interactive threads are serviced
+quickly. These are usually the threads that interact directly with the user
+and cause user-perceivable latency. These threads usually do little work and
+spend most of their time blocked awaiting another user event. So they get the
+priority boost from unblocking while background threads that do most of the
+processing receive the priority penalty for using their entire timeslice.
