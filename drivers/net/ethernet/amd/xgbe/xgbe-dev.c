@@ -358,7 +358,7 @@ unlock:
 
 static int xgbe_write_rss_hash_key(struct xgbe_prv_data *pdata)
 {
-	unsigned int key_regs = sizeof(pdata->rss_key) / sizeof(u32);
+	unsigned int key_regs = sizeof(pdata->rss_key) / (sizeof(u32));
 	unsigned int *key = (unsigned int *)&pdata->rss_key;
 	int ret;
 

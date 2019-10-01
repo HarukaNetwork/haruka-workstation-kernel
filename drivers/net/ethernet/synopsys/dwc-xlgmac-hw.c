@@ -2326,7 +2326,7 @@ unlock:
 
 static int xlgmac_write_rss_hash_key(struct xlgmac_pdata *pdata)
 {
-	unsigned int key_regs = sizeof(pdata->rss_key) / sizeof(u32);
+	unsigned int key_regs = sizeof(pdata->rss_key) / (sizeof(u32));
 	unsigned int *key = (unsigned int *)&pdata->rss_key;
 	int ret;
 
