@@ -1326,7 +1326,7 @@ out:
 	return dest_cpu;
 }
 
-static inline int __best_mask_cpu(int cpu, cpumask_t *cpumask)
+static inline int __best_mask_cpu(int cpu, const cpumask_t *cpumask)
 {
 	cpumask_t *mask = &(per_cpu(sched_cpu_affinity_masks, cpu)[0]);
 	while ((cpu = cpumask_any_and(cpumask, mask)) >= nr_cpu_ids)
@@ -1334,7 +1334,7 @@ static inline int __best_mask_cpu(int cpu, cpumask_t *cpumask)
 	return cpu;
 }
 
-static inline int best_mask_cpu(int cpu, cpumask_t *cpumask)
+static inline int best_mask_cpu(int cpu, const cpumask_t *cpumask)
 {
 	return cpumask_test_cpu(cpu, cpumask)? cpu:__best_mask_cpu(cpu, cpumask);
 }
@@ -5411,6 +5411,23 @@ void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
  * used to mark begin/end of suspend/resume:
  */
 static int num_cpus_frozen;
+
+#ifdef CONFIG_NUMA
+int __read_mostly		node_reclaim_distance = RECLAIM_DISTANCE;
+
+/*
+ * sched_numa_find_closest() - given the NUMA topology, find the cpu
+ *                             closest to @cpu from @cpumask.
+ * cpumask: cpumask to find a cpu from
+ * cpu: cpu to be close to
+ *
+ * returns: cpu, or nr_cpu_ids when nothing found.
+ */
+int sched_numa_find_closest(const struct cpumask *cpus, int cpu)
+{
+	return best_mask_cpu(cpu, cpus);
+}
+#endif /* CONFIG_NUMA */
 
 /*
  * Update cpusets according to cpu_active mask.  If cpusets are

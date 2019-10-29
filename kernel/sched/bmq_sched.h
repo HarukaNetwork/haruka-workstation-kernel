@@ -460,4 +460,13 @@ static inline int task_running_nice(struct task_struct *p)
 {
 	return (p->prio + p->boost_prio > DEFAULT_PRIO + MAX_PRIORITY_ADJ);
 }
+
+#ifdef CONFIG_NUMA
+extern int sched_numa_find_closest(const struct cpumask *cpus, int cpu);
+#else
+static inline int sched_numa_find_closest(const struct cpumask *cpus, int cpu)
+{
+	return nr_cpu_ids;
+}
+#endif
 #endif /* BMQ_SCHED_H */
