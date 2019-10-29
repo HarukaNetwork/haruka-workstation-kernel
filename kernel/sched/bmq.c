@@ -3894,9 +3894,8 @@ recheck:
 	 * Changing the policy of the stop threads its a very bad idea
 	 */
 	if (p == rq->stop) {
-		__task_access_unlock(p, lock);
-		raw_spin_unlock_irqrestore(&p->pi_lock, flags);
-		return -EINVAL;
+		retval = -EINVAL;
+		goto unlock;
 	}
 
 	/*
@@ -3910,9 +3909,8 @@ recheck:
 			goto change;
 
 		p->sched_reset_on_fork = reset_on_fork;
-		__task_access_unlock(p, lock);
-		raw_spin_unlock_irqrestore(&p->pi_lock, flags);
-		return 0;
+		retval = 0;
+		goto unlock;
 	}
 change:
 
@@ -3936,9 +3934,8 @@ change:
 		 */
 		if (rt_effective_prio(p, newprio) == p->prio) {
 			__setscheduler_params(p, attr);
-			__task_access_unlock(p, lock);
-			raw_spin_unlock_irqrestore(&p->pi_lock, flags);
-			return 0;
+			retval = 0;
+			goto unlock;
 		}
 	}
 
@@ -3957,6 +3954,11 @@ change:
 	preempt_enable();
 
 	return 0;
+
+unlock:
+	__task_access_unlock(p, lock);
+	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
+	return retval;
 }
 
 static int _sched_setscheduler(struct task_struct *p, int policy,
