@@ -1483,8 +1483,6 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct i915_vma *vma)
 
 	urelocs = u64_to_user_ptr(entry->relocs_ptr);
 	remain = entry->relocation_count;
-	if (unlikely(remain > N_RELOC(ULONG_MAX)))
-		return -EINVAL;
 
 	/*
 	 * We must check that the entire relocation array is safe
