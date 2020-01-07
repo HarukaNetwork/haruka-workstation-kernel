@@ -294,8 +294,9 @@ do { \
 #define true  1
 #endif
 
-#define ENABLE_S5WOL	1
+#if defined(CONFIG_MACH_LOONGSON32) || defined(CONFIG_MACH_LOONGSON64)
 #define CONFIG_SOC_LAN	1
+#endif
 
 #ifdef RTL8168_DEBUG
 #undef RTL8168_DEBUG
