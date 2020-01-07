@@ -60,6 +60,13 @@ static inline int task_on_rq_migrating(struct task_struct *p)
 	return READ_ONCE(p->on_rq) == TASK_ON_RQ_MIGRATING;
 }
 
+/*
+ * wake flags
+ */
+#define WF_SYNC		0x01		/* waker goes to sleep after wakeup */
+#define WF_FORK		0x02		/* child wakeup after fork */
+#define WF_MIGRATED	0x04		/* internal use, task got migrated */
+
 /* bits:
  * RT, Low prio adj range, nice width, high prio adj range, cpu idle task */
 #define bmq_BITS		(NICE_WIDTH + 2 * MAX_PRIORITY_ADJ + 2)
