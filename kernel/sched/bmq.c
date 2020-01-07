@@ -2052,7 +2052,7 @@ prepare_lock_switch(struct rq *rq, struct task_struct *next)
 	 * of the scheduler it's an obvious special-case), so we
 	 * do an early lockdep release here:
 	 */
-	spin_release(&rq->lock.dep_map, 1, _THIS_IP_);
+	spin_release(&rq->lock.dep_map, _THIS_IP_);
 #ifdef CONFIG_DEBUG_SPINLOCK
 	/* this is a valid case when another task releases the spinlock */
 	rq->lock.owner = next;
@@ -2868,7 +2868,7 @@ static inline int take_other_rq_tasks(struct rq *rq, int cpu)
 
 			nr_migrated = migrate_pending_tasks(src_rq, rq, cpu);
 
-			spin_release(&src_rq->lock.dep_map, 1, _RET_IP_);
+			spin_release(&src_rq->lock.dep_map, _RET_IP_);
 			do_raw_spin_unlock(&src_rq->lock);
 
 			if (nr_migrated) {
