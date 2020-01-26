@@ -2412,6 +2412,7 @@ again:
 
 		printk_safe_enter_irqsave(flags);
 		raw_spin_lock(&logbuf_lock);
+#ifdef CONFIG_PRINTK
 		if (console_seq < log_first_seq) {
 			len = sprintf(text,
 				      "** %llu printk messages dropped **\n",
@@ -2420,9 +2421,9 @@ again:
 			/* messages are gone, move to first one */
 			console_seq = log_first_seq;
 			console_idx = log_first_idx;
-		} else {
+		} else
+#endif
 			len = 0;
-		}
 skip:
 		if (console_seq == log_next_seq)
 			break;
