@@ -3,7 +3,7 @@ VERSION = 5
 PATCHLEVEL = 5
 SUBLEVEL = 11
 EXTRAVERSION = -haruka1
-NAME = Kleptomaniac Octopus
+NAME = Plutonious Future
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
