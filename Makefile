@@ -718,12 +718,12 @@ POLLY_COMMON  := -mllvm -polly \
                  -mllvm -polly-run-inliner \
                  -mllvm -polly-opt-fusion=max \
                  -mllvm -polly-ast-use-context \
-                 -mllvm -polly-detect-keep-going \
                  -mllvm -polly-vectorizer=stripmine
+POLLY_DKG     := -mllvm -polly-detect-keep-going
 POLLY_ILH     := -mllvm -polly-invariant-load-hoisting
-POLLY         := $(POLLY_COMMON) $(POLLY_ILH)
+POLLY         := $(POLLY_COMMON) $(POLLY_DKG) $(POLLY_ILH)
 # Export variables to be picked up by subdirs Makefile
-export POLLY_COMMON POLLY_ILH POLLY
+export POLLY_COMMON POLLY_DKG POLLY_ILH POLLY
 
 # Include Polly optimizations treewide, with exceptions in subdirs if applicable
 KBUILD_CFLAGS += $(POLLY)

@@ -33,7 +33,7 @@ faulty-y	+= md-faulty.o
 # without breaking build by omitting all instances of -mllvm required by Polly.
 ifdef CONFIG_LLVM_POLLY
 CFLAGS_REMOVE_raid10.o := $(POLLY)
-CFLAGS_raid10.o        := $(POLLY_COMMON)
+CFLAGS_raid10.o        := $(POLLY_COMMON) $(POLLY_DKG)
 endif
 
 # Note: link order is important.  All raid personalities

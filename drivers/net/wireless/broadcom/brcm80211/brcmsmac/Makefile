@@ -20,6 +20,13 @@ ccflags-y := \
 	-I $(srctree)/$(src)/phy \
 	-I $(srctree)/$(src)/../include
 
+# Avoid compiler crash with LLVM Polly enabled.
+# Seems like it only happens on ABS right now, but better be safe than sorry.
+ifdef CONFIG_LLVM_POLLY
+CFLAGS_REMOVE_main.o := $(POLLY)
+CFLAGS_main.o        := $(POLLY_COMMON) $(POLLY_ILH)
+endif
+
 brcmsmac-y := \
 	mac80211_if.o \
 	ucode_loader.o \
