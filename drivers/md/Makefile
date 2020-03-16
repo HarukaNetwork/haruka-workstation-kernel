@@ -27,6 +27,15 @@ linear-y	+= md-linear.o
 multipath-y	+= md-multipath.o
 faulty-y	+= md-faulty.o
 
+# Avoid compiler crash with LLVM Polly enabled.
+# Filter out all Polly flags and add them but invariant-load-hoisting back.
+# This is ugly but also the only way to retain most of Polly optimizations
+# without breaking build by omitting all instances of -mllvm required by Polly.
+ifdef CONFIG_LLVM_POLLY
+CFLAGS_REMOVE_raid10.o := $(POLLY)
+CFLAGS_raid10.o        := $(POLLY_COMMON)
+endif
+
 # Note: link order is important.  All raid personalities
 # and must come before md.o, as they each initialise 
 # themselves, and md.o may use the personalities when it 

@@ -713,14 +713,20 @@ KBUILD_CFLAGS   += -Wno-maybe-uninitialized
 endif
 
 ifdef CONFIG_LLVM_POLLY
-KBUILD_CFLAGS += -mllvm -polly \
+POLLY_COMMON  := -mllvm -polly \
                  -mllvm -polly-run-dce \
                  -mllvm -polly-run-inliner \
                  -mllvm -polly-opt-fusion=max \
                  -mllvm -polly-ast-use-context \
                  -mllvm -polly-detect-keep-going \
-                 -mllvm -polly-vectorizer=stripmine \
-                 -mllvm -polly-invariant-load-hoisting
+                 -mllvm -polly-vectorizer=stripmine
+POLLY_ILH     := -mllvm -polly-invariant-load-hoisting
+POLLY         := $(POLLY_COMMON) $(POLLY_ILH)
+# Export variables to be picked up by subdirs Makefile
+export POLLY_COMMON POLLY_ILH POLLY
+
+# Include Polly optimizations treewide, with exceptions in subdirs if applicable
+KBUILD_CFLAGS += $(POLLY)
 endif
 
 # Tell gcc to never replace conditional load with a non-conditional one
