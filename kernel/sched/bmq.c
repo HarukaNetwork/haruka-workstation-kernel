@@ -50,7 +50,20 @@
 
 #define STOP_PRIO		(MAX_RT_PRIO - 1)
 
-#define SCHED_TIMESLICE_NS	(CONFIG_SCHED_TIMESLICE * 1000 * 1000)
+/* Default time slice is 4 in ms, can be set via kernel parameter "bmq.timeslice" */
+u64 sched_timeslice_ns __read_mostly = (4 * 1000 * 1000);
+
+static int __init sched_timeslice(char *str)
+{
+	int timeslice_us;
+
+	get_option(&str, &timeslice_us);
+	if (timeslice_us >= 1000)
+		sched_timeslice_ns = timeslice_us * 1000;
+
+	return 0;
+}
+early_param("bmq.timeslice", sched_timeslice);
 
 /* Reschedule if less than this many μs left */
 #define RESCHED_NS		(100 * 1000)
@@ -69,7 +82,7 @@
 
 static inline void print_scheduler_version(void)
 {
-	printk(KERN_INFO "bmq: BMQ CPU Scheduler 5.5-r0 by Alfred Chen.\n");
+	printk(KERN_INFO "bmq: BMQ CPU Scheduler 5.5-r1 by Alfred Chen.\n");
 }
 
 /**
@@ -81,7 +94,7 @@ static inline void print_scheduler_version(void)
 int sched_yield_type __read_mostly = 1;
 
 #define rq_switch_time(rq)	((rq)->clock - (rq)->last_ts_switch)
-#define boost_threshold(p)	(SCHED_TIMESLICE_NS >>\
+#define boost_threshold(p)	(sched_timeslice_ns >>\
 				 (10 - MAX_PRIORITY_ADJ -  (p)->boost_prio))
 
 static inline void boost_task(struct task_struct *p)
@@ -1655,7 +1668,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 		atomic_dec(&task_rq(p)->nr_iowait);
 	}
 
-	if(cpu_rq(smp_processor_id())->clock - p->last_ran > SCHED_TIMESLICE_NS)
+	if(cpu_rq(smp_processor_id())->clock - p->last_ran > sched_timeslice_ns)
 		boost_task(p);
 
 	cpu = select_task_rq(p);
@@ -1776,7 +1789,7 @@ int sched_fork(unsigned long __maybe_unused clone_flags, struct task_struct *p)
 #endif
 
 	if (p->time_slice < RESCHED_NS) {
-		p->time_slice = SCHED_TIMESLICE_NS;
+		p->time_slice = sched_timeslice_ns;
 		resched_curr(rq);
 	}
 	raw_spin_unlock_irqrestore(&rq->lock, flags);
@@ -2800,7 +2813,7 @@ static inline void check_curr(struct task_struct *p, struct rq *rq)
 	update_curr(rq, p);
 
 	if (p->time_slice < RESCHED_NS) {
-		p->time_slice = SCHED_TIMESLICE_NS;
+		p->time_slice = sched_timeslice_ns;
 		if (SCHED_FIFO != p->policy && task_on_rq_queued(p)) {
 			if (SCHED_RR != p->policy)
 				deboost_task(p);
@@ -2975,7 +2988,7 @@ static inline void set_rq_task(struct rq *rq, struct task_struct *p)
 {
 	p->last_ran = rq->clock_task;
 
-	if (unlikely(SCHED_TIMESLICE_NS == p->time_slice))
+	if (unlikely(sched_timeslice_ns == p->time_slice))
 		rq->last_ts_switch = rq->clock;
 #ifdef CONFIG_HIGH_RES_TIMERS
 	if (p != rq->idle)
@@ -4789,7 +4802,7 @@ static int sched_rr_get_interval(pid_t pid, struct timespec64 *t)
 		goto out_unlock;
 	rcu_read_unlock();
 
-	*t = ns_to_timespec64(SCHED_TIMESLICE_NS);
+	*t = ns_to_timespec64(sched_timeslice_ns);
 	return 0;
 
 out_unlock:
@@ -5605,42 +5618,33 @@ static void sched_init_topology_cpumask(void)
 	for_each_online_cpu(cpu) {
 		chk = &(per_cpu(sched_cpu_affinity_masks, cpu)[0]);
 
+		cpumask_complement(chk, cpumask_of(cpu));
 #ifdef CONFIG_SCHED_SMT
-		cpumask_setall(chk);
-		cpumask_clear_cpu(cpu, chk);
-		if (cpumask_and(chk, chk, topology_sibling_cpumask(cpu))) {
-			printk(KERN_INFO "bmq: cpu #%d affinity check mask - smt 0x%08lx",
+		if (cpumask_and(chk, chk, topology_sibling_cpumask(cpu)))
+			printk(KERN_INFO "bmq: cpu #%d affinity mask - smt 0x%08lx",
 			       cpu, (chk++)->bits[0]);
-		}
 		cpumask_complement(chk, topology_sibling_cpumask(cpu));
-#else
-		cpumask_clear_cpu(cpu, chk);
 #endif
+		/* Set up sd_llc_id per CPU */
+		per_cpu(sd_llc_id, cpu) =
 #ifdef CONFIG_SCHED_MC
+			cpumask_first(cpu_coregroup_mask(cpu));
+
 		if (cpumask_and(chk, chk, cpu_coregroup_mask(cpu)))
-			printk(KERN_INFO "bmq: cpu #%d affinity check mask - coregroup 0x%08lx",
+			printk(KERN_INFO "bmq: cpu #%d affinity mask - coregroup 0x%08lx",
 			       cpu, (chk++)->bits[0]);
 		cpumask_complement(chk, cpu_coregroup_mask(cpu));
-
-		/**
-		 * Set up sd_llc_id per CPU
-		 */
-		per_cpu(sd_llc_id, cpu) =
-			cpumask_first(cpu_coregroup_mask(cpu));
 #else
-		per_cpu(sd_llc_id, cpu) =
 			cpumask_first(topology_core_cpumask(cpu));
+#endif
 
-		cpumask_setall(chk);
-		cpumask_clear_cpu(cpu, chk);
-#endif /* NOT CONFIG_SCHED_MC */
 		if (cpumask_and(chk, chk, topology_core_cpumask(cpu)))
-			printk(KERN_INFO "bmq: cpu #%d affinity check mask - core 0x%08lx",
+			printk(KERN_INFO "bmq: cpu #%d affinity mask - core 0x%08lx",
 			       cpu, (chk++)->bits[0]);
 		cpumask_complement(chk, topology_core_cpumask(cpu));
 
 		if (cpumask_and(chk, chk, cpu_online_mask))
-			printk(KERN_INFO "bmq: cpu #%d affinity check mask - others 0x%08lx",
+			printk(KERN_INFO "bmq: cpu #%d affinity mask - others 0x%08lx",
 			       cpu, (chk++)->bits[0]);
 
 		per_cpu(sched_cpu_affinity_end_mask, cpu) = chk;
