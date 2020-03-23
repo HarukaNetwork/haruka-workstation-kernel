@@ -70,7 +70,7 @@ early_param("bmq.timeslice", sched_timeslice);
 
 static inline void print_scheduler_version(void)
 {
-	printk(KERN_INFO "bmq: BMQ CPU Scheduler 5.5-r2 by Alfred Chen.\n");
+	printk(KERN_INFO "bmq: BMQ CPU Scheduler 5.5-r3 by Alfred Chen.\n");
 }
 
 /**
@@ -116,6 +116,7 @@ static cpumask_t sched_rq_pending_mask ____cacheline_aligned_in_smp;
 
 DEFINE_PER_CPU(cpumask_t [NR_CPU_AFFINITY_CHK_LEVEL], sched_cpu_affinity_masks);
 DEFINE_PER_CPU(cpumask_t *, sched_cpu_affinity_end_mask);
+DEFINE_PER_CPU(cpumask_t *, sched_cpu_llc_mask);
 
 #ifdef CONFIG_SCHED_SMT
 DEFINE_STATIC_KEY_FALSE(sched_smt_present);
@@ -2699,6 +2700,39 @@ unsigned long nr_iowait(void)
 	return sum;
 }
 
+#ifdef CONFIG_SMP
+
+/*
+ * sched_exec - execve() is a valuable balancing opportunity, because at
+ * this point the task has the smallest effective memory and cache
+ * footprint.
+ */
+void sched_exec(void)
+{
+	struct task_struct *p = current;
+	int dest_cpu;
+
+	if (task_rq(p)->nr_running < 2)
+		return;
+
+	dest_cpu = cpumask_any_and(p->cpus_ptr, &sched_rq_watermark[IDLE_WM]);
+	if ( dest_cpu < nr_cpu_ids) {
+#ifdef CONFIG_SCHED_SMT
+		int smt = cpumask_any_and(p->cpus_ptr, &sched_sg_idle_mask);
+		if (smt < nr_cpu_ids)
+			dest_cpu = smt;
+#endif
+		if (likely(cpu_active(dest_cpu))) {
+			struct migration_arg arg = { p, dest_cpu };
+
+			stop_one_cpu(task_cpu(p), migration_cpu_stop, &arg);
+			return;
+		}
+	}
+}
+
+#endif
+
 DEFINE_PER_CPU(struct kernel_stat, kstat);
 DEFINE_PER_CPU(struct kernel_cpustat, kernel_cpustat);
 
@@ -2821,8 +2855,12 @@ static inline int active_load_balance_cpu_stop(void *data)
 	rq->active_balance = 0;
 	/* _something_ may have changed the task, double check again */
 	if (task_on_rq_queued(p) && task_rq(p) == rq &&
-	    cpumask_and(&tmp, p->cpus_ptr, &sched_sg_idle_mask))
-		rq = move_queued_task(rq, p, __best_mask_cpu(cpu_of(rq), &tmp));
+	    cpumask_and(&tmp, p->cpus_ptr, &sched_sg_idle_mask)) {
+		int cpu = cpu_of(rq);
+		int dcpu = __best_mask_cpu(cpu, &tmp,
+					   per_cpu(sched_cpu_llc_mask, cpu));
+		rq = move_queued_task(rq, p, dcpu);
+	}
 
 	raw_spin_unlock(&rq->lock);
 	raw_spin_unlock(&p->pi_lock);
@@ -2833,8 +2871,9 @@ static inline int active_load_balance_cpu_stop(void *data)
 }
 
 /* sg_balance_trigger - trigger slibing group balance for @cpu */
-static inline int sg_balance_trigger(const int cpu, struct rq *rq)
+static inline int sg_balance_trigger(const int cpu)
 {
+	struct rq *rq= cpu_rq(cpu);
 	unsigned long flags;
 	struct task_struct *curr;
 	int res;
@@ -2870,38 +2909,25 @@ static inline void sg_balance_check(struct rq *rq)
 		return;
 
 	cpu = cpu_of(rq);
-	/* Only cpu in slibing idle group will do the checking */
-	if (cpumask_test_cpu(cpu, &sched_sg_idle_mask)) {
-		/* Find potential cpus which can migrate the currently running task */
-		if (cpumask_andnot(&chk, cpu_online_mask, &sched_rq_pending_mask) &&
-		    cpumask_andnot(&chk, &chk, &sched_rq_watermark[IDLE_WM])) {
-			int i, tried = 0;
+	/*
+	 * Only cpu in slibing idle group will do the checking and then
+	 * find potential cpus which can migrate the current running task
+	 */
+	if (cpumask_test_cpu(cpu, &sched_sg_idle_mask) &&
+	    cpumask_andnot(&chk, cpu_online_mask, &sched_rq_pending_mask) &&
+	    cpumask_andnot(&chk, &chk, &sched_rq_watermark[IDLE_WM])) {
+		int i, tried = 0;
 
-			for_each_cpu_wrap(i, &chk, cpu) {
-				/* skip the cpu which has idle slibing cpu */
-				if (cpumask_intersects(cpu_smt_mask(i),
-						       &sched_rq_watermark[IDLE_WM]))
-					continue;
-				if (cpumask_intersects(cpu_smt_mask(i),
-						       &sched_rq_pending_mask))
-					continue;
-				if (sg_balance_trigger(i, cpu_rq(i)))
+		for_each_cpu_wrap(i, &chk, cpu) {
+			if (cpumask_subset(cpu_smt_mask(i), &chk)) {
+				if (sg_balance_trigger(i))
 					return;
 				if (tried)
 					return;
 				tried++;
 			}
 		}
-		return;
 	}
-
-	if (1 != rq->nr_running)
-		return;
-
-	if (cpumask_andnot(&chk, cpu_smt_mask(cpu), &sched_rq_pending_mask) &&
-	    cpumask_andnot(&chk, &chk, &sched_rq_watermark[IDLE_WM]) &&
-	    cpumask_equal(&chk, cpu_smt_mask(cpu)))
-		sg_balance_trigger(cpu, rq);
 }
 #endif /* CONFIG_SCHED_SMT */
 
@@ -5482,10 +5508,22 @@ static void sched_init_topology_cpumask_early(void)
 			cpumask_copy(tmp, cpu_possible_mask);
 			cpumask_clear_cpu(cpu, tmp);
 		}
+		per_cpu(sched_cpu_llc_mask, cpu) =
+			&(per_cpu(sched_cpu_affinity_masks, cpu)[0]);
 		per_cpu(sched_cpu_affinity_end_mask, cpu) =
 			&(per_cpu(sched_cpu_affinity_masks, cpu)[1]);
+		per_cpu(sd_llc_id, cpu) = cpu;
 	}
 }
+
+#define TOPOLOGY_CPUMASK(name, func) \
+	if (cpumask_and(chk, chk, func(cpu))) {					\
+		per_cpu(sched_cpu_llc_mask, cpu) = chk;				\
+		per_cpu(sd_llc_id, cpu) = cpumask_first(func(cpu));		\
+		printk(KERN_INFO "bmq: cpu#%d affinity mask - "#name" 0x%08lx",	\
+		       cpu, (chk++)->bits[0]);					\
+	}									\
+	cpumask_complement(chk, func(cpu))
 
 static void sched_init_topology_cpumask(void)
 {
@@ -5497,34 +5535,23 @@ static void sched_init_topology_cpumask(void)
 
 		cpumask_complement(chk, cpumask_of(cpu));
 #ifdef CONFIG_SCHED_SMT
-		if (cpumask_and(chk, chk, topology_sibling_cpumask(cpu)))
-			printk(KERN_INFO "bmq: cpu #%d affinity mask - smt 0x%08lx",
-			       cpu, (chk++)->bits[0]);
-		cpumask_complement(chk, topology_sibling_cpumask(cpu));
+		TOPOLOGY_CPUMASK(smt, topology_sibling_cpumask);
 #endif
-		/* Set up sd_llc_id per CPU */
-		per_cpu(sd_llc_id, cpu) =
 #ifdef CONFIG_SCHED_MC
-			cpumask_first(cpu_coregroup_mask(cpu));
-
-		if (cpumask_and(chk, chk, cpu_coregroup_mask(cpu)))
-			printk(KERN_INFO "bmq: cpu #%d affinity mask - coregroup 0x%08lx",
-			       cpu, (chk++)->bits[0]);
-		cpumask_complement(chk, cpu_coregroup_mask(cpu));
-#else
-			cpumask_first(topology_core_cpumask(cpu));
+		TOPOLOGY_CPUMASK(coregroup, cpu_coregroup_mask);
 #endif
 
-		if (cpumask_and(chk, chk, topology_core_cpumask(cpu)))
-			printk(KERN_INFO "bmq: cpu #%d affinity mask - core 0x%08lx",
-			       cpu, (chk++)->bits[0]);
-		cpumask_complement(chk, topology_core_cpumask(cpu));
+		TOPOLOGY_CPUMASK(core, topology_core_cpumask);
 
 		if (cpumask_and(chk, chk, cpu_online_mask))
-			printk(KERN_INFO "bmq: cpu #%d affinity mask - others 0x%08lx",
+			printk(KERN_INFO "bmq: cpu#%d affinity mask - others 0x%08lx",
 			       cpu, (chk++)->bits[0]);
 
 		per_cpu(sched_cpu_affinity_end_mask, cpu) = chk;
+		printk(KERN_INFO "bmq: cpu#%d llc_id = %d, llc_mask idx = %ld\n",
+		       cpu, per_cpu(sd_llc_id, cpu),
+		       per_cpu(sched_cpu_llc_mask, cpu) -
+		       &(per_cpu(sched_cpu_affinity_masks, cpu)[0]));
 	}
 }
 #endif
