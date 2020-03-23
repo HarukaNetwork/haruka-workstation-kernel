@@ -1649,7 +1649,7 @@ static bool hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 		if (spec->dyn_pcm_assign && pcm_jack && !do_repoll) {
 			int state = 0;
 
-			if (jack->pin_sense & AC_PINSENSE_PRESENCE)
+			if (!!(jack->pin_sense & AC_PINSENSE_PRESENCE))
 				state = SND_JACK_AVOUT;
 			snd_jack_report(pcm_jack, state);
 		}
