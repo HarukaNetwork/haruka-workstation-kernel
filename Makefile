@@ -2,7 +2,7 @@
 VERSION = 5
 PATCHLEVEL = 5
 SUBLEVEL = 11
-EXTRAVERSION = -haruka1
+EXTRAVERSION = -haruka2
 NAME = Plutonious Future
 
 # *DOCUMENTATION*
