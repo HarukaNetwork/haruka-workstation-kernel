@@ -2,7 +2,7 @@
 VERSION = 5
 PATCHLEVEL = 5
 SUBLEVEL = 11
-EXTRAVERSION = -arch1
+EXTRAVERSION = -haruka1
 NAME = Kleptomaniac Octopus
 
 # *DOCUMENTATION*
