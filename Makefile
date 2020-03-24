@@ -712,6 +712,23 @@ ifdef CONFIG_CC_DISABLE_WARN_MAYBE_UNINITIALIZED
 KBUILD_CFLAGS   += -Wno-maybe-uninitialized
 endif
 
+ifdef CONFIG_LLVM_POLLY
+POLLY_COMMON  := -mllvm -polly \
+                 -mllvm -polly-run-dce \
+                 -mllvm -polly-run-inliner \
+                 -mllvm -polly-opt-fusion=max \
+                 -mllvm -polly-ast-use-context \
+                 -mllvm -polly-vectorizer=stripmine
+POLLY_DKG     := -mllvm -polly-detect-keep-going
+POLLY_ILH     := -mllvm -polly-invariant-load-hoisting
+POLLY         := $(POLLY_COMMON) $(POLLY_DKG) $(POLLY_ILH)
+# Export variables to be picked up by subdirs Makefile
+export POLLY_COMMON POLLY_DKG POLLY_ILH POLLY
+
+# Include Polly optimizations treewide, with exceptions in subdirs if applicable
+KBUILD_CFLAGS += $(POLLY)
+endif
+
 # Tell gcc to never replace conditional load with a non-conditional one
 KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
 
